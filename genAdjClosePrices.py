@@ -1,10 +1,15 @@
+# genAdjClosePrices.py
+# This script fetches adjusted closing prices for a list of ETFs from Yahoo Finance
+# outputs CSV suitable for Sheets import
+#
+
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
 def generate_etf_adjusted_closes_csv(
-    start_date: str,          # '2007-01-01'
-    end_date: str = None,     # '2007-12-31' or None for latest
+    start_date: str,          
+    end_date: str = None,     # None for latest
     tickers: list[str] = None,
     output_file: str = "etf_adjusted_closes.csv"
 ) -> pd.DataFrame:
@@ -73,7 +78,7 @@ if __name__ == "__main__":
     
     result = generate_etf_adjusted_closes_csv(
         start_date='2025-01-01',
-        end_date='2026-03-03',           # a bit extra to catch the dates in your sample
+        end_date='2026-03-03',           
         tickers=tickers,
         output_file = "/Users/peterkay/Downloads/etfmar-2026.csv"
     )

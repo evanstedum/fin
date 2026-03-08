@@ -1,6 +1,7 @@
 # backtesterWorking.py
-# Monthly momentum ETF rotation backtester
-# Updated to fix backtest logic: per-rank bucket rotation, keep qty if same ticker in same rank, else reinvest current value of old into new
+# Monthly momentum ETF rotation backtester with portfolio-level threshold rebalancing
+# Updated: per-rank bucket rotation + keep qty if same ticker, else reinvest current value
+# Now includes: rebalance whole portfolio to 1/3 each if any bucket drifts > threshold
 
 import pandas as pd
 import numpy as np
@@ -17,11 +18,11 @@ TICKERS = [
 ]
 
 # Analysis period — we want last trading days of month inside this window
-analysis_start = "2025-01-31"
+analysis_start = "2007-01-01"   # inclusive lower bound
 analysis_end   = "2026-02-27"   # exclusive upper bound
 
 # Fetch extra history so 252-day lookback works from day 1
-fetch_start    = "2024-01-01"   # ~14 months before analysis_start — safe buffer
+fetch_start    = "2005-01-01"   # ~14 months before analysis_start — safe buffer
 
 INITIAL_VALUE = 100_000
 VALUE_PER_BUCKET = INITIAL_VALUE // 3
@@ -30,9 +31,11 @@ VALUE_PER_BUCKET = INITIAL_VALUE // 3
 PERIODS = [63, 126, 252]
 PERIOD_NAMES = ["63", "126", "252"]
 
-# suffix gets appended to each csv file
+# Rebalancing threshold (as decimal) — 20% drift triggers full portfolio rebalance
+REBALANCE_THRESHOLD = 0.20
 
-FILE_SUFFIX = "2025backtest"
+# suffix gets appended to each csv file
+FILE_SUFFIX = "2007rebalancing"
 
 OUTPUT_DIR = Path("/Users/peterkay/Downloads/backtestFiles")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -81,38 +84,18 @@ print([d.strftime("%Y-%m-%d") for d in monthly_ends])
 # ────────────────────────────────────────────────
 # 3. Build historyData rows
 # ────────────────────────────────────────────────
-# This is the core momentum ranking preparation step.
-# For every valid month-end trading date in the analysis period:
-#   - Loop through each ticker
-#   - Check if we have enough clean history for ALL momentum periods (63, 126, 252 trading days)
-#   - Calculate percentage gain for each lookback period
-#   - Compute "Papa Avg" = simple arithmetic mean of the three momentum values
-#   - Store a detailed row with current price, all past dates/closes/gains, and Papa Avg
-#
-# Important design choices / assumptions:
-#   - We require **all three** momentum periods to have valid, non-zero, non-NaN data
-#     → if any lookback is missing or invalid → skip the ticker for that month entirely
-#   - Gains are calculated using adjusted closes (dividend & split adjusted)
-#   - Momentum is expressed as percentage gain (not log return or total return index)
-#   - Ranking will be done by Papa Avg descending (highest average momentum = best)
-#   - We round displayed values to 2 decimals for readability in CSV
-#   - Rows are collected in a list then turned into a DataFrame once at the end
-#     (more memory-efficient than appending to df repeatedly)
 
 rows = []
 
 for as_of_date in monthly_ends:
     print(f"  Processing {as_of_date.date()} ... ", end="")
 
-    # Get the integer position of this date in the adj_close index
-    # (faster than .loc for repeated integer-based slicing later)
     idx = adj_close.index.get_loc(as_of_date)
 
     for ticker in TICKERS:
         if ticker not in adj_close.columns:
             continue
 
-        # Current price on the rebalance date
         current_close = adj_close.loc[as_of_date, ticker]
         if pd.isna(current_close):
             continue
@@ -123,35 +106,28 @@ for as_of_date in monthly_ends:
 
         valid = True
         for days_back in PERIODS:
-            # Check if we even have enough rows of history before this date
             if idx < days_back:
                 valid = False
                 break
 
-            # Go back exactly 'days_back' trading days (not calendar days)
             past_idx   = idx - days_back
             past_date  = adj_close.index[past_idx]
             past_close = adj_close.iloc[past_idx][ticker]
 
-            # Make sure we have valid data — skip ticker if any lookback is bad
             if pd.isna(past_close) or past_close == 0:
                 valid = False
                 break
 
-            # Standard momentum: percentage change
             gain_pct = (current_close / past_close - 1) * 100
             past_dates.append(past_date)
             past_closes.append(past_close)
             gains.append(gain_pct)
 
         if not valid:
-            # Skip this ticker for this month — not enough reliable history
             continue
 
-        # Our composite momentum score: plain average of the three periods
         papa_avg = np.mean(gains)
 
-        # Build the output row with all details for auditing / debugging
         row = {
             "Ticker": ticker,
             "As of Date": as_of_date,
@@ -159,7 +135,6 @@ for as_of_date in monthly_ends:
             "Papa Avg": round(papa_avg, 2),
         }
 
-        # Add the detailed per-period columns so we can verify calculations
         for i, name in enumerate(PERIOD_NAMES):
             row[name]                = past_dates[i].strftime("%m/%d/%Y")
             row[f"{name} Day Close"] = round(float(past_closes[i]), 2)
@@ -169,22 +144,14 @@ for as_of_date in monthly_ends:
 
     print("done")
 
-# Safety check — if nothing survived the filters, something's wrong with data or lookbacks
 if not rows:
     raise ValueError("No valid momentum rows generated — check data / lookbacks")
 
-# Convert list of dicts → DataFrame once (much faster than incremental appends)
 history_df = pd.DataFrame(rows)
-
-# Critical sort: oldest to newest date, and within each date highest momentum first
-# This ordering is what lets us do .head(3) later to get top-ranked tickers
 history_df = history_df.sort_values(["As of Date", "Papa Avg"], ascending=[True, False])
-
-# Make dates human-readable in the CSV (reviewers love this)
 history_df["As of Date"] = history_df["As of Date"].dt.strftime("%m/%d/%Y")
 
 dataFileName = "historyData" + FILE_SUFFIX + ".csv"
-
 history_df.to_csv(OUTPUT_DIR / dataFileName, index=False)
 print(f"\nSaved historyData.csv  ({len(history_df)} rows)")
 
@@ -215,17 +182,15 @@ for as_of_str in history_df["As of Date"].unique():
 portfolio_df = pd.DataFrame(portfolio_rows)
 
 dataFileName = "portfolioList" + FILE_SUFFIX + ".csv"
-
 portfolio_df.to_csv(OUTPUT_DIR / dataFileName, index=False)
 print(f"Saved portfolioList.csv  ({len(portfolio_df)} months)")
 
 # ────────────────────────────────────────────────
-# 5. backtestResults — independent bucket management
+# 5. backtestResults — independent bucket management + rebalancing
 # ────────────────────────────────────────────────
 
 backtest_rows = []
 
-# Track per bucket (rank)
 prev_tickers = [None, None, None]
 prev_qtys = [0, 0, 0]
 
@@ -244,44 +209,51 @@ for _, row in portfolio_df.iterrows():
         curr_close = curr_closes[i]
         
         if prev_tickers[i] is None:
-            # First row: initial allocation
             qtys[i] = VALUE_PER_BUCKET // curr_close
             print(f"Initial buy {as_of_str} B{i+1}: {curr_ticker} {qtys[i]} shares")
         elif curr_ticker == prev_tickers[i]:
-            # Same ticker in this rank: keep qty
             qtys[i] = prev_qtys[i]
         else:
-            # Rotation: sell old at current close, buy new with proceeds (floor qty)
             old_ticker = prev_tickers[i]
             old_close = adj_close.loc[as_of_date, old_ticker]
             current_value = prev_qtys[i] * old_close
             qtys[i] = int(current_value // curr_close)
             print(f"Rotate {as_of_str} B{i+1}: {old_ticker} → {curr_ticker} {qtys[i]} shares (proceeds ~{current_value:.0f})")
     
-    # Compute values (round to integer dollars, as in sample)
+    # Compute current values after rotation/keep logic
     for i in range(3):
         values[i] = round(qtys[i] * curr_closes[i])
     
     total = sum(values)
 
-    # grok insert rebalancing code here and use these comments as a guide for the logic:
+    # ────────────────────────────────────────────────
+    # Portfolio-level rebalancing (if any bucket drifts too far)
+    # ────────────────────────────────────────────────
+    target = total / 3
 
-    # first compute target amount which is 1/3 of total portfolio value at this point in time e.g. target = total / 3
-    #     
-    # for each bucket e.g. for i in range(3):
+    needs_rebalance = False
+    for i in range(3):
+        diff_pct = abs(values[i] - target) / target
+        if diff_pct > REBALANCE_THRESHOLD:
+            needs_rebalance = True
+            break
 
-    # then for each bucket, compute the absolute percentage difference between current value and target e.g. diff_pct = abs(values[i] - target) / target
+    if needs_rebalance:
+        print(f"REBALANCE triggered {as_of_str} | drift > {REBALANCE_THRESHOLD:.0%}")
+        
+        for i in range(3):
+            qtys[i] = int(target // curr_closes[i])
+        
+        # Recompute values & total after rebalance
+        for i in range(3):
+            values[i] = round(qtys[i] * curr_closes[i])
+        
+        total = sum(values)
+        
+        print(f"  After rebalance → values: {values}  total: {total:,.0f}")
 
-    # if diff_pct > REBALANCE_THRESHOLD, we rebalance all 3 buckets by resetting the qty to be target / current price e.g. qtys[i] = int(target // curr_closes[i]) for all i in range(3)
+    # ────────────────────────────────────────────────
 
-    # recompute values after potential rebalance and total after rebalance
-
-    # grok this ends the rebalance logic comment block
-
-
-    total = sum(values)
-    
-    # Append row with formatting
     backtest_rows.append({
         "As of Date": as_of_str,
         "B1 Ticker": curr_tickers[0],
@@ -296,7 +268,6 @@ for _, row in portfolio_df.iterrows():
         "Total Value": f"${total:,}"
     })
     
-    # Update prev for next iteration
     prev_tickers = curr_tickers
     prev_qtys = qtys
 

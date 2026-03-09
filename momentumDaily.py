@@ -13,11 +13,11 @@ tickers = [
 ]
 
 # Analysis period (trading days inside this range)
-start_date = '2026-01-01'
-end_date   = '2026-03-02'   # exclusive upper bound
+start_date = '2007-10-31'
+end_date   = '2009-01-30'   # exclusive upper bound
 
 # Fetch extra history so we can calculate 252 trading days back
-fetch_start = '2025-01-01'
+fetch_start = '2006-08-01'
 
 # Lookback periods in trading days
 periods = [63, 126, 252]

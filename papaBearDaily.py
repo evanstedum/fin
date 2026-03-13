@@ -33,7 +33,7 @@ periods = [63, 126, 252]
 period_names = ['63', '126', '252']
 
 # ← change filename as needed
-output_file = f'/Users/peterkay/Downloads/papabear{start_date.replace("-", "")}to{end_date.replace("-", "")}.csv'
+output_file = f'/Users/peterkay/Downloads/csv/papabear{start_date.replace("-", "")}to{end_date.replace("-", "")}.csv'
 
 # ────────────────────────────────────────────────
 # DOWNLOAD DATA

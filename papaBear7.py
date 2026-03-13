@@ -40,7 +40,7 @@ PERIOD_NAMES = ["63", "126", "252"]
 
 REBALANCE_THRESHOLD = 0.20
 
-FILE_SUFFIX = f'end{analysis_end.replace("-", "")}'
+FILE_SUFFIX = f'Ending{analysis_end.replace("-", "")}'
 
 OUTPUT_DIR = Path("/Users/peterkay/Downloads/backtestFiles")
 OUTPUT_DIR.mkdir(exist_ok=True)

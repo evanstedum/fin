@@ -1,3 +1,11 @@
+"""
+Papa Bear Daily Momentum Snapshot
+
+forked from momentumDaily
+
+pulls last 7 days with momentum calcs.
+
+"""
 import yfinance as yf
 import pandas as pd
 import numpy as np

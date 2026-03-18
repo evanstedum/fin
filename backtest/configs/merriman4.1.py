@@ -1,0 +1,18 @@
+""" 
+merriman4.py
+Merriman's 4 fund portfolio, with monthly rebalancing and independent bucket management 
+"""
+import sys
+from pathlib import Path
+from datetime import date
+# Make backtest/ the root for imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = backtest/
+from src.momentum import run_momentum
+
+CONFIG = {
+    "tickers_param": ["VOO", "VONV", "VIOV", "VIOO"],
+    "file_suffix_param": "merriman4"
+}
+
+if __name__ == "__main__":
+    run_momentum(**CONFIG)

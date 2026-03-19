@@ -60,20 +60,29 @@ avg_momentum = (mom_3 + mom_6 + mom_12) / 3
 weights = pd.DataFrame(0.0, index=avg_momentum.index, columns=avg_momentum.columns)
 
 for i in range(1, len(avg_momentum)):
-    # For each month starting from the second row (i=1), we look back at the previous month's momentum to determine the top 3 tickers. We then assign those tickers a weight of 1/3 for the current month.
+    # For each month starting from the second row (i=1), we look back at the previous month's momentum to determine the top 3 tickers. We then assign those tickers a weight of 1/3 for the current month and create a table of weights that we will later apply to the returns. 
     #
     # the len() function in panda returns the number of rows in avg_momentum, so the loop iterates through each month starting from the second one (since the first month has no prior momentum data). Inside the loop, we use .iloc[i-1] to access the previous month's momentum data, find the top 3 tickers with .nlargest(3), and then set their weights to 1/3 for the current month in the weights DataFrame.
     #
+    # how to list tail 3 of those with weight > 0
+    # weights.tail(3).loc[:, lambda df: df.sum() > 0]
+    # weights.tail(3).loc[:, lambda ddf: ddf.sum() > 0] # ddf names the frame inside the lambda function, you can name it anything you want, it's just a placeholder for the DataFrame being processed. The key part is that it allows you to filter columns based on their sum, which is what we want to do to find the tickers that have a weight greater than 0 in the last 3 rows.
+
     prev_mom = avg_momentum.iloc[i-1] # Get the previous month's momentum
     top3 = prev_mom.nlargest(3).index # Find the top 3 tickers and use .index to get their names. e.g. returns something like Index(['BNDX', 'EDV', 'IAU'], dtype='str', name='Ticker')
     weights.loc[avg_momentum.index[i], top3] = 1/3 # Assign equal weight to the top 3 for the current month. the [] after weights.loc[...] selects the columns corresponding to the top 3 tickers and sets their weight to 1/3 for that month.
 
 # Monthly asset returns
+# list tail of those with return > 0
+# monthly_returns.tail(3)[monthly_returns.columns[monthly_returns.sum() > 0]]
 monthly_returns = monthly_prices.pct_change()
 
 # Strategy returns (weights from previous month applied to current month)
+# The weights are shifted by 1 month to apply the previous month's weights to the current month's returns, which simulates the rebalancing process. The .sum(axis=1) then sums across all tickers to get the total portfolio return for each month.
+# .shift function shifts the weights down by one row, so the weights for month t are applied to the returns of month t. This simulates the real-world scenario where you determine your portfolio allocation at the end of month t-1 and then experience the returns in month t based on that allocation.
+# .sum(axis=1) sums the weighted returns across all tickers for each month, giving you the total portfolio return for that month.
 portfolio_returns = (weights.shift(1) * monthly_returns).sum(axis=1)
-bench_returns = monthly_returns[benchmark]
+bench_returns = monthly_returns[benchmark] # Extract the benchmark returns (SPY) for the same period to compare against our strategy. This will allow us to calculate performance metrics and plot the equity curve for both the portfolio and the benchmark.
 
 # =============================================================================
 # SLICE TO USER'S ORIGINAL start_date (bug fix in action)

@@ -12,6 +12,7 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 from datetime import datetime
+from pathlib import Path
 
 # =============================================================================
 # CONFIGURATION - change these as needed
@@ -27,6 +28,13 @@ end_date   = datetime.today().strftime("%Y-%m-%d")
 
 top_count = 3 # how many top assets to balance?
 value_start = 100_000 # starting porfolio value
+rebalance_trigger = .2 # what's the biggest bucket delta we'll take before we rebalance
+file_suffix_param = "PapaLean"  # suffix gets appended to each csv file
+output_dir_param = "/Users/peterkay/Downloads/backtestFiles" # directory holding csvs
+
+# set/verify directory
+output_dir = Path(output_dir_param)
+output_dir.mkdir(exist_ok=True)
 
 # =============================================================================
 # DOWNLOAD WITH MOMENTUM LOOKBACK BUFFER
@@ -44,7 +52,9 @@ data = yf.download(
     progress=False
 )["Close"]
 
-# data.to_csv("/Users/peterkay/Downloads/backtestFiles/papa_bear_raw_prices.csv") # save raw data for debugging
+csvFileName = "yfdata"
+data.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+
 
 # =============================================================================
 # Resample to month-end last trading day
@@ -53,6 +63,9 @@ data = yf.download(
 # .resample is an intermediate step to ensure we have clean month-end data for momentum calculations and rebalancing - you have to add an aggregation method like .last() to get a single price per month, and dropna to handle any missing data at month-ends. how="all" means it will only drop rows where all columns are NaN, which is what we want in case some tickers have missing data but others don't.
 # use BME instead of ME to get the last business day of the month, which is more accurate for trading purposes since the actual month-end might be a weekend or holiday. BME stands for Business Month End.
 monthly_prices = data.resample("BME").last().dropna(how="all")
+
+csvFileName = "monthPrices"
+monthly_prices.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
 
 # monthly_prices.to_csv("/Users/peterkay/Downloads/backtestFiles/papa_bear_monthly_prices.csv") # save monthly data for debugging
 
@@ -103,6 +116,13 @@ for i in range(1, len(avg_momentum)):
     top_close.loc[ticks.name, price_cols] = prices.values # and store those prices in their corresponding puka 
     pass # end of loop
 
+# save 'em
+csvFileName = "topTics"
+top_ticks.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+
+csvFileName = "topClose"
+top_close.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+
 #===========
 # calculate holdings
 
@@ -118,6 +138,9 @@ shares = pd.DataFrame(index=avg_momentum.index, columns=share_cols)
 
 any_changes = top_ticks.ne(top_ticks.shift(1)).any(axis=1)
 
+csvFileName = "anyChanges"
+any_changes.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+
 # value = shares * price
 #
 # for each month
@@ -131,23 +154,37 @@ any_changes = top_ticks.ne(top_ticks.shift(1)).any(axis=1)
 #            shares [this month] = value[this month] / price of this month top tick
 #       <rebalance logic>
 
-for month, adj_close in top_close.iterrows(): # iterate through value df, idx holds the index and row holds the series (row) of value df
-    # print(f"month:{month} \n adj close:{adj_close}")
-#    for column in range(top_count): # each column in the tables
+for month, adj_close in top_close.iterrows(): # iterate through top_close df, month holds the index (the date and row holds the series (row) of top_close
     if top_close.index.get_loc(month) == 0 : # are we on 1st row
         value.loc[month] = value_start / top_count # divide up value by number of buckets
-        pass
     else:  # all but the 1st row 
         # this monthy's value is last months shares * this month's price of last month's ticker adj close of those shares
         value.loc[month] = shares.shift(1).loc[month].values * monthly_prices.loc[month][top_ticks.shift(1).loc[month]].values  # top_ticks.shift1 gets last month's tickers which then looks up this month's prices in monthly_prices   
     if any_changes[month]: # any changed tickers this month?
-        # yes, sell what we have and buy the new ones on this month's closing price
-        # print(f"Value:{value.loc[month]} \n preShares:{shares.loc[month]} \n adj_close:{adj_close}")    
+        # yes, sell what we have and buy the new ones on this month's ticker's closing price
         shares.loc[month, share_cols] = value.loc[month].values / adj_close.values
     else: # no changes - just carry forward the shares we have
         shares.loc[month] = shares.shift(1).loc[month]
-        pass
-    # print(f"Value:{value.loc[month]} \n Shares:{shares.loc[month]} \n ")
-    # bug - share amounts don't change 
     pass
-    
+    if (value.loc[month].max() - value.loc[month].min()) / value.loc[month].min() > rebalance_trigger:  # we hit the rebalance trigger
+        pass
+        value.loc[month] = value.loc[month].sum() / top_count # evenly distribute value
+        shares.loc[month, share_cols] = value.loc[month].values / adj_close.values # and buy the shares back
+
+csvFileName = "value"
+value.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+
+csvFileName = "shares"
+shares.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+
+#===========
+# finalize data for copy/paste friendly format
+
+copy_paste = value.sum(axis=1) # we just care about the monthly total portfolio value
+copy_paste = value[value.index > pd.to_datetime(start_date)].sum(axis=1) # only total portfolio value from the original start date specified
+
+print("Exporting CopyPaste Values to CSV")
+csvFileName = "CopyPaste"
+
+copy_paste.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+print("Done!")

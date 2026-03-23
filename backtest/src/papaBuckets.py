@@ -116,6 +116,8 @@ for i in range(1, len(avg_momentum)):
     top_close.loc[ticks.name, price_cols] = prices.values # and store those prices in their corresponding puka 
     pass # end of loop
 
+# trim out dates before the actual start date
+top_close = top_close[top_close.index > pd.to_datetime(start_date)]
 # save 'em
 csvFileName = "topTics"
 top_ticks.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")

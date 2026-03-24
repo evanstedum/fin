@@ -17,7 +17,7 @@ CONFIG = {
     "analysis_end": date.today().isoformat(),   # today
     "analysis_start": "2025-12-01",
     "fetch_start": "2024-10-01",  # ~14 months before analysis_start — safe buffer
-    "file_suffix_param": "papa26YTD"
+    "file_prefix": "papa26YTD"
 }
 
 

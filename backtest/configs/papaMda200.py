@@ -15,7 +15,7 @@ CONFIG = {
         'PDBC', 'IAU', 'EDV', 'VGIT', 'VCLT', 'BNDX'
     ],
     "mda_param": 200,
-    "file_suffix_param": "mda200"
+    "file_prefix": "papa200MDA"
 }
 
 

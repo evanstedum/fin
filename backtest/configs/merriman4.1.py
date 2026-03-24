@@ -7,12 +7,12 @@ from pathlib import Path
 from datetime import date
 # Make backtest/ the root for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = backtest/
-from src.papaSrc import run_papa
+from src.momda import run_momda
 
 CONFIG = {
     "tickers_param": ["VOO", "VONV", "VIOV", "VIOO"],
-    "file_suffix_param": "merriman4L"
+    "file_prefix": "merriman4L"
 }
 
 if __name__ == "__main__":
-    run_papa(**CONFIG)
+    run_momda(**CONFIG)

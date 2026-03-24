@@ -608,7 +608,24 @@ df = df[['AAPL', 'MSFT', 'Close']]          # keeps only these
 # 6. Drop column by index position (if you don't know name)
 df = df.drop(df.columns[3], axis=1)         # drops 4th column
 
+#======= rename a column
+# 
 #===============
+
+# Rename the first column (position 0) to a new name
+data = data.rename(columns={data.columns[0]: 'new_column_name'})
+
+data.rename(columns={data.columns[0]: 'new_column_name'}, inplace=True)
+
+# If you know the current name
+data = data.rename(columns={'old_name': 'new_column_name'})
+
+# If you want to rename by position using a list
+data.columns = ['new_column_name'] + list(data.columns[1:])
+
+
+
+
 """
 code only how to append n copies of a given ticker to the df
 

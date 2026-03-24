@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import date
 # Make backtest/ the root for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = backtest/
-from src.papaSrc import run_papa
+from src.momda import run_momda
 
 CONFIG = {
     "tickers_param": [
@@ -42,9 +42,11 @@ CONFIG = {
         'BNDX',  # Non-US Developed Bonds
         'VWOB'   # Emerging Market Bonds
     ],
-    "file_suffix_param": "Gemini20L"
+    "mda_param": 200,
+    "top_assets": 5,
+    "file_prefix": "Gemini5Mda"
 }
 
 
 if __name__ == "__main__":
-    run_papa(**CONFIG)
+    run_momda(**CONFIG)

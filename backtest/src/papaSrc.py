@@ -142,19 +142,6 @@ def run_papa (
     csvFileName = "anyChanges"
     any_changes.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
 
-    # value = shares * price
-    #
-    # for each month
-    #   first month logic:
-    #       build row
-    #           value [each top_count] = start_portfolio_value / top_count
-    #           shares [each top_count] = value / share price
-    #   for each top count
-    #       value[this month] = this month price of last month top tick * shares
-    #       if top_ticks[prev month] <> top_ticks[month] # the momentum has change
-    #            shares [this month] = value[this month] / price of this month top tick
-    #       <rebalance logic>
-
     for month, adj_close in top_close.iterrows(): # iterate through top_close df, month holds the index (the date and row holds the series (row) of top_close
         if top_close.index.get_loc(month) == 0 : # are we on 1st row
             value.loc[month] = value_start / top_count # divide up value by number of buckets

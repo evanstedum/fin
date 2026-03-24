@@ -1,10 +1,6 @@
 """ 
-ramseyPicks.py
-2 of each from the below:
-Growth
-Growth and income
-Aggressive growth
-International
+papaOrig.py
+Papa bear original 13 
 """
 import sys
 from pathlib import Path
@@ -14,9 +10,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = bac
 from src.momda import run_momda
 
 CONFIG = {
-    "tickers_param": ["VUG", "QQQ", "VIG", "SCHD", "MGK", "IWY", "VXUS", "VEA"],
-    "file_prefix": "ramseyPicks"
+    "tickers_param": [
+        'VTV', 'VUG', 'VIOV', 'VIOG', 'VEA', 'VWO', 'VNQ',
+        'PDBC', 'IAU', 'EDV', 'VGIT', 'VCLT', 'BNDX'
+    ],
+    "top_count": 4, # balance and select across 4 buckets
+    "file_prefix": "papa4buckets"
 }
+
 
 if __name__ == "__main__":
     run_momda(**CONFIG)

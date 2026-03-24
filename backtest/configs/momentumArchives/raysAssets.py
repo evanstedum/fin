@@ -9,12 +9,12 @@ from pathlib import Path
 from datetime import date
 # Make backtest/ the root for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = backtest/
-from src.momda import run_momda
+from src.momentum import run_momentum
 
 CONFIG = {
     "tickers_param": ["VOO", "VT", "TLT", "BND", "VNQ", "TIP", "VTIP", "GLD"],
-    "file_prefix": "raysAssetsL"
+    "file_prefix": "raysAssets"
 }
 
 if __name__ == "__main__":
-    run_momda(**CONFIG)
+    run_momentum(**CONFIG)

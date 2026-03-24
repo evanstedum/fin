@@ -1,10 +1,11 @@
 """ 
-ramseyPicks.py
+ramseyMDA.py
 2 of each from the below:
 Growth
 Growth and income
 Aggressive growth
 International
+includes the mda option
 """
 import sys
 from pathlib import Path
@@ -15,7 +16,8 @@ from src.momda import run_momda
 
 CONFIG = {
     "tickers_param": ["VUG", "QQQ", "VIG", "SCHD", "MGK", "IWY", "VXUS", "VEA"],
-    "file_prefix": "ramseyPicks"
+    "mda_param": 200,
+    "file_prefix": "ramseyMDA"
 }
 
 if __name__ == "__main__":

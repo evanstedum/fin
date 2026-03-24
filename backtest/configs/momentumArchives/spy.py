@@ -7,14 +7,13 @@ from pathlib import Path
 from datetime import date
 # Make backtest/ the root for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = backtest/
-from src.momda import run_momda
+from src.momentum import run_momentum
 
 CONFIG = {
     # avantis "tickers_param": ["AVUS", "AVLV", "AVSC", "AVUV"],
-    "tickers_param": ["SPY"],
-    "mda_param": 200,
-    "file_prefix": "spyMDA"
+    "tickers_param": ["SPY", "SPY", "SPY"],
+    "file_prefix": "spy"
 }
 
 if __name__ == "__main__":
-    run_momda(**CONFIG)
+    run_momentum(**CONFIG)

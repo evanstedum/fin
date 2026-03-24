@@ -1,20 +1,11 @@
 """ 
-
 momda - forked papaSrc and added moving day average logic
 
 big difference from Papa bear:
 
-if mda_param > 0 - this turns on the feature
-    get BIL from yfinance
-    create cashdf with top_count columns of BIL values using daily price index
-    append cashdf to daily prices
-    create mdadf mask of mda of mda_param days for each daily price
-    create mdatf mask of true/false if price is above mda
-else
-    create mdatf mask of true for all 
-
-in momentum computation pick the top three AND mdatf = true
-
+adds "money market" ticker for each bucket (e.g. 3 money markets) to whatever the ticker list is
+in momentum computation pick the top three that are also above their MDA
+cash accounts are always considered above their mda so worst case (i.e. all tickers are below their mda) all money will go to cash for that month
 
 """
 
@@ -36,12 +27,13 @@ def run_momda (
     ],
     start_date: str  = "2016-01-01",      # <-- your desired backtest start
     end_date: str    = datetime.today().strftime("%Y-%m-%d"),
-    top_count: int = 3, # how many top assets to balance?
+    top_assets: int = 3, # how many top assets to balance?
     value_start: float = 100_000, # starting porfolio value
     rebalance_trigger: float  = .2, # what's the biggest bucket delta we'll take before we rebalance
     mda_param: int = 0, # non-zero values kick in the days to compute moving average
     cash_etf: str = 'BIL',
-    file_suffix_param: str  = "PapaLean",  # suffix gets appended to each csv file
+    file_prefix: str  = "momda",  # suffix gets appended to each csv file
+    verbose: bool = False, # outputs lots of csv files along the way
     output_dir_param: str  = "/Users/peterkay/Downloads/backtestFiles" # directory holding csvs
 ) -> None:
 
@@ -49,6 +41,8 @@ def run_momda (
     output_dir = Path(output_dir_param)
     output_dir.mkdir(exist_ok=True)
 
+    # fix top_assets in case we have less tickers than buckets to hold
+    top_assets = min(top_assets, len(tickers_param))
     # =============================================================================
     # DOWNLOAD WITH MOMENTUM LOOKBACK BUFFER
     # =============================================================================
@@ -65,7 +59,7 @@ def run_momda (
         progress=False
     )["Close"]
     csvFileName = "yfdata"
-    data.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    if verbose: data.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv") 
 
     if mda_param > 0:  # if we're doing mda we'll need cash accounts
         cash_df = yf.download(
@@ -75,16 +69,16 @@ def run_momda (
             auto_adjust=True,      # fully adjusted OHLC (Close column is perfect)
             progress=False
         )["Close"]
-        cash_cols = [f"{cash_etf}{i}" for i in range(1, top_count + 1)] # labels for cash df
-        data = data.assign(**{col: cash_df for col in cash_cols}) # add a cash account ticker for each bucket (top_count) to the portfolio - this way under the worst month cash will show up as the best momentum performer.
+        cash_cols = [f"{cash_etf}{i}" for i in range(1, top_assets + 1)] # labels for cash df
+        data = data.assign(**{col: cash_df for col in cash_cols}) # add a cash account ticker for each bucket (top_assets) to the portfolio - this way under the worst month cash will show up as the best momentum performer.
         mda = data.rolling(mda_param).mean() # store moving day average in another dataframt
         above_mda = data > mda # and yet another mask to hold true if closing price is above mda
-        above_mda = above_mda.resample("BME").last().dropna(how="all") # we'll only need the month-end mask
         above_mda[cash_cols] = True #force the cash accounts to be above closing price so that we know that at least those accounts will get selected.
     else: # we're not doing mda
         above_mda = data != None # set the mask to all true so nothing gets affected
+    above_mda = above_mda.resample("BME").last().dropna(how="all") # we'll only need the month-end mask
     pass
-
+    
 
     # =============================================================================
     # Resample to month-end last trading day
@@ -95,7 +89,7 @@ def run_momda (
     monthly_prices = data.resample("BME").last().dropna(how="all")
 
     csvFileName = "monthPrices"
-    monthly_prices.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    if verbose: monthly_prices.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv")
 
     # monthly_prices.to_csv("/Users/peterkay/Downloads/backtestFiles/papa_bear_monthly_prices.csv") # save monthly data for debugging
 
@@ -125,8 +119,8 @@ def run_momda (
     # =============================================================================
 
 
-    ticker_cols = [f"t{i}" for i in range(1, top_count + 1)] # build list of ticker cols e.g. t1, t2, t3 etc
-    price_cols = [f"p{i}" for i in range(1, top_count + 1)]  # list of price cols e.g. p1, p2, p3, etc
+    ticker_cols = [f"t{i}" for i in range(1, top_assets + 1)] # build list of ticker cols e.g. t1, t2, t3 etc
+    price_cols = [f"p{i}" for i in range(1, top_assets + 1)]  # list of price cols e.g. p1, p2, p3, etc
 
     # create empty dataframes to handle top tickers and their prices
 
@@ -141,7 +135,7 @@ def run_momda (
 
         prev_mom = avg_momentum.iloc[i-1] # Get the previous month's momentum
         mda_mask = above_mda.loc[prev_mom.name] # and that month's mda mask
-        ticks = prev_mom[mda_mask].nlargest(top_count) # get our top tickers that are above the mda in a series that includes the date
+        ticks = prev_mom[mda_mask].nlargest(top_assets) # get our top tickers that are above the mda in a series that includes the date
         top_ticks.loc[ticks.name, ticker_cols] = ticks.index # save those tickers
         prices = monthly_prices.loc[ticks.name][ticks.index] # then lookup the prices for the date [ticks.name] for the tickers [ticks.index]
         top_close.loc[ticks.name, price_cols] = prices.values # and store those prices in their corresponding puka 
@@ -151,17 +145,17 @@ def run_momda (
     top_close = top_close[top_close.index > pd.to_datetime(start_date)]
     # save 'em
     csvFileName = "topTics"
-    top_ticks.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    if verbose: top_ticks.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv")
 
     csvFileName = "topClose"
-    top_close.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    if verbose: top_close.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv")
 
     #===========
     # calculate holdings
 
     # create value and shares tables
-    val_cols = [f"v{i}" for i in range(1, top_count + 1)]  # value of shares e.g. v1, v2, v3
-    share_cols = [f"s{i}" for i in range(1, top_count + 1)]  # shares held  e.g. s1, s2, s3
+    val_cols = [f"v{i}" for i in range(1, top_assets + 1)]  # value of shares e.g. v1, v2, v3
+    share_cols = [f"s{i}" for i in range(1, top_assets + 1)]  # shares held  e.g. s1, s2, s3
 
     value = pd.DataFrame(index=avg_momentum.index, columns=val_cols)
     shares = pd.DataFrame(index=avg_momentum.index, columns=share_cols)
@@ -172,30 +166,31 @@ def run_momda (
     any_changes = top_ticks.ne(top_ticks.shift(1)).any(axis=1)
 
     csvFileName = "anyChanges"
-    any_changes.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    if verbose: any_changes.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv")
 
     for month, adj_close in top_close.iterrows(): # iterate through top_close df, month holds the index (the date and row holds the series (row) of top_close
         if top_close.index.get_loc(month) == 0 : # are we on 1st row
-            value.loc[month] = value_start / top_count # divide up value by number of buckets
+            value.loc[month] = value_start / top_assets # divide up value by number of buckets
         else:  # all but the 1st row 
             # this monthy's value is last months shares * this month's price of last month's ticker adj close of those shares
             value.loc[month] = shares.shift(1).loc[month].values * monthly_prices.loc[month][top_ticks.shift(1).loc[month]].values  # top_ticks.shift1 gets last month's tickers which then looks up this month's prices in monthly_prices   
-        if any_changes[month]: # any changed tickers this month?
+        if any_changes[month] | (top_close.index.get_loc(month) == 0) : 
+            # any changed tickers this month or are we on the 1st month?
             # yes, sell what we have and buy the new ones on this month's ticker's closing price
             shares.loc[month, share_cols] = value.loc[month].values / adj_close.values
-        else: # no changes - just carry forward the shares we have
-            shares.loc[month] = shares.shift(1).loc[month]
+        else: 
+            shares.loc[month] = shares.shift(1).loc[month] # no changes - just carry forward the shares we have
         pass
         if (value.loc[month].max() - value.loc[month].min()) / value.loc[month].min() > rebalance_trigger:  # we hit the rebalance trigger
             pass
-            value.loc[month] = value.loc[month].sum() / top_count # evenly distribute value
+            value.loc[month] = value.loc[month].sum() / top_assets # evenly distribute value
             shares.loc[month, share_cols] = value.loc[month].values / adj_close.values # and buy the shares back
 
     csvFileName = "value"
-    value.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    if verbose: value.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv")
 
     csvFileName = "shares"
-    shares.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    if verbose: shares.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv")
 
     #===========
     # finalize data for copy/paste friendly format
@@ -203,8 +198,10 @@ def run_momda (
     copy_paste = value.sum(axis=1) # we just care about the monthly total portfolio value
     copy_paste = value[value.index > pd.to_datetime(start_date)].sum(axis=1) # only total portfolio value from the original start date specified
 
-    print("Exporting CopyPaste Values to CSV")
+    #copy_paste = copy_paste.rename(columns={copy_paste.columns[0]: f"{file_prefix}"})
+    copy_paste.rename(f"{file_prefix}", inplace=True)
     csvFileName = "CopyPaste"
-
-    copy_paste.to_csv(f"{output_dir}/{csvFileName}{file_suffix_param}.csv")
+    print(f"Exporting Values to {file_prefix}{csvFileName}.csv")
+    
+    copy_paste.to_csv(f"{output_dir}/{file_prefix}{csvFileName}.csv")
     print("Done!")

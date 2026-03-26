@@ -88,6 +88,8 @@ class yfcache:
         results_df = self.con.execute(query, params).df()
 
         if results_df.empty:
+            # Create the full calendar range requested by the user
+            all_dates = pd.date_range(start=start_date, end=end_date)
             # Return an empty frame with requested tickers and dates (filled with NaN)
             return pd.DataFrame(index=all_dates, columns=ticker_list)
 

@@ -7,24 +7,23 @@ from datetime import date
 # Example script using yfcache class
 cache = yfcache()
 
+tickers=['AAPL', 'VIOV', 'VTV', 'VUG']
+startd="2019-09-12"
+endd="2019-12-31"
 
 # Request adjusted close prices - will hit cache or download once
-df3 = cache.get(
-    ticker_list=['AAPL', 'VUG'],
-    start_date="2019-09-12",
-    end_date="2018-12-31"
-)
+dfc = cache.get( tickers, startd, endd)
 
-df = cache.get(
-    ticker_list=['AAPL', 'VIOV', 'VTV', 'VUG'],
-    start_date="2019-09-12",
-    end_date="2018-12-31"
-)
+dfy = yf.download(tickers, start=startd, end=endd, auto_adjust=True, progress=False)["Close"]
 
-print(df.head())
-print("\nShape:", df.shape)
-print("Index type:", type(df.index))
-print("Columns:", df.columns.tolist())
+iscached = (cache.iscached(tickers, startd, endd) != None).all().all() # check if every cell is cached
+
+print(f"cached?{iscached}, same dfs?{dfc.equals(dfy)} Shape:{dfc.shape}, dfyShape:{dfy.shape} ")
+
+print(dfy.head())
+print("\nShape:", dfy.shape)
+print("Index type:", type(dfy.index))
+print("Columns:", dfy.columns.tolist())
 
 tickers=['AAPL', 'VIOV', 'VTV', 'VUG']
 start="2019-09-12"

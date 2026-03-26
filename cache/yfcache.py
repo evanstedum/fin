@@ -82,13 +82,10 @@ class yfcache:
         placeholders = ', '.join(['?'] * len(ticker_list))
         query = f"""
             SELECT date, ticker, price FROM prices 
-            WHERE ticker IN ({placeholders}) AND date BETWEEN ? AND ?
+            WHERE ticker IN ({placeholders}) AND date >= ? AND date < ?
         """
         params = ticker_list + [start_date, end_date]
         results_df = self.con.execute(query, params).df()
-
-        # Create the full calendar range requested by the user
-        all_dates = pd.date_range(start=start_date, end=end_date)
 
         if results_df.empty:
             # Return an empty frame with requested tickers and dates (filled with NaN)
@@ -99,7 +96,7 @@ class yfcache:
         
         # Ensure all calendar days and all requested tickers are present
         final_df.index = pd.to_datetime(final_df.index)
-        return final_df.reindex(index=all_dates, columns=ticker_list)
+        return final_df
     
     def iscached(self, ticker_list, start_date, end_date): #returns df if cached, false or nothing if not
         # Standardize inputs

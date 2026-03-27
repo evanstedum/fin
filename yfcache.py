@@ -39,7 +39,7 @@ class yfcache:
         s, e = sorted([start_date, end_date])
         return ticker_list, tickers_key, s, e
 
-    def get(self, ticker_list, start_date, end_date):
+    def get(self, ticker_list, start_date, end_date, skip_cache = False):
         # Centralized input cleaning and standardization via _key
         ticker_list, _, start_date, end_date = self._key(ticker_list, start_date, end_date)
 
@@ -52,10 +52,11 @@ class yfcache:
             """, [ticker]).fetchone()
             
             # Download if ticker is totally missing, or cached range is insufficient
-            if not res or res[0] is None or res[0] > start_date or res[1] < end_date:
+            # or we're being forced to ignore (skip) cache
+            if not res or res[0] is None or res[0] > start_date or res[1] < end_date or skip_cache:
                 missing_tickers.append(ticker)
 
-        # 2. Fetch and merge missing data
+        # 2. Fetch and merge missing data or if we're explicitly told to skip caching
         if missing_tickers:
             # Download from start_date to today to maximize the value of the new cache entry
             today = date.today().strftime("%Y-%m-%d")

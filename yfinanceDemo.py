@@ -1,13 +1,14 @@
 import yfinance as yf
 
 # Download historical data for VWO - pick any range you want
-ticker = "AAPL"
+ticker = ['AAPL', 'VTV', 'VUG', 'VIOV']
 data = yf.download(
     ticker, 
     start="2019-09-03", 
     end="2019-10-01", 
     auto_adjust=True
-)  # up to roughly today
+)["Close"]  # up to roughly today
+
 
 # The 'Adj Close' column is what we want - fully adjusted for splits + dividends
 print("Recent adjusted closes from yfinance:")

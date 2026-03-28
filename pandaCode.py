@@ -692,3 +692,47 @@ df = df.assign(**{col: data for col in new_cols})
 new_data = {col: data for col in new_cols}
 df = df.assign(**new_data)
 
+#================
+# caching with parquet
+import yfinance as yf
+import pandas as pd
+from pathlib import Path
+
+cache_dir = Path.home() / ".cache" / "finance_data"
+cache_dir.mkdir(parents=True, exist_ok=True)
+
+ticker = "AAPL"
+parquet_path = cache_dir / f"{ticker}.parquet"
+
+if not parquet_path.exists():
+    df = yf.download(ticker, auto_adjust=True, progress=False)
+    df.to_parquet(parquet_path)
+    print("Downloaded and cached")
+else:
+    print("Using cache")
+
+df = pd.read_parquet(parquet_path)
+print(df.tail())
+
+
+# To check if all elements in a pandas DataFrame are True (more pythonic than the double .any() you mentioned for "any"):
+all_true = df.all().all()
+all_true = (df == True).all().all()
+
+#function to test if 2 frames have same values
+
+def frames_equal(df1, df2):
+    """Return True if two DataFrames have exactly the same values (ignores index/columns names)."""
+    return df1.equals(df2) or (df1.values == df2.values).all()
+
+#Compare DataFrames ignoring index
+def frames_equal_ignore_index(df1, df2):
+    return (df1.values == df2.values).all()
+
+# I have a frame with 3 cols - date, ticker, price - how to sort by date, ticker
+import pandas as pd
+
+df = df.sort_values(by=['date', 'ticker'])
+
+# how to designate asc or desc
+df = df.sort_values(by=['date', 'ticker'], ascending=[True, True])

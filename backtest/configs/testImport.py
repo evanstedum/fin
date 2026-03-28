@@ -3,8 +3,7 @@
 import sys
 from pathlib import Path
 
-# Make backtest/ the root for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = backtest/
+
 
 try:
     from src.momentum import run_momentum

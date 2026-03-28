@@ -1,10 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "fin"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.11"
+description = "Financial backtesting and caching library"
 dependencies = [
-    "pandas>=3.0.1",
-    "yfinance>=1.2.0",
+    "pandas", "yfinance", "duckdb", "numpy", "matplotlib"
 ]
+
+[tool.setuptools]
+# Only recognize yfcache.py and the specific backtest source directory
+py-modules = ["yfcache"]
+packages = ["backtest", "backtest.src"]

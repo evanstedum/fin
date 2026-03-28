@@ -7,9 +7,8 @@ NotebookLM's recommendation to expand the original 13 picks to 20,
 import sys
 from pathlib import Path
 from datetime import date
-# Make backtest/ the root for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # parents[1] = backtest/
-from src.momda import run_momda
+
+from backtest.src.momda import run_momda
 
 CONFIG = {
     "tickers_param": [

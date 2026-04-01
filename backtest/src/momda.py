@@ -27,6 +27,7 @@ def run_momda (
         'VTV', 'VUG', 'VIOV', 'VIOG', 'VEA', 'VWO', 'VNQ',
         'PDBC', 'IAU', 'EDV', 'VGIT', 'VCLT', 'BNDX'
     ],
+    mom_days: list[int] = [63, 126, 252], # trading days to average over
     start_date: str  = (datetime.today() - pd.Timedelta(weeks=532)).strftime("%Y-%m-%d"),# approx 10 yrs and 3 months go
     end_date: str    = datetime.today().strftime("%Y-%m-%d"),
     top_assets: int = 3, # how many top assets to balance?
@@ -123,15 +124,10 @@ def run_momda (
     # we need to lookback 63 days vs. 3 months so we'll look through the data df and then resample to business month end after calculating the pct change. This way we ensure that the momentum is calculated based on the actual daily data, and then we can align it with the month-end dates for our strategy.
 
     # to calculate 62 days back we need data.pct_change(periods=62) 
-    # =============================================================================
-    # mom_3  = monthly_prices.pct_change(periods=3)
-    mom_3 = data.pct_change(periods=63).resample("BME").last()
-    # mom_6  = monthly_prices.pct_change(periods=6)
-    mom_6 = data.pct_change(periods=126).resample("BME").last()
-    # mom_12 = monthly_prices.pct_change(periods=12)
-    mom_12 = data.pct_change(periods=252).resample("BME").last()   
-
-    avg_momentum = (mom_3 + mom_6 + mom_12) / 3
+    # =============================================================================    
+    # Calculate momentum for each period and average them
+    mom_list = [data.pct_change(periods=d).resample("BME").last() for d in mom_days]
+    avg_momentum = sum(mom_list) / len(mom_days)
 
     # =============================================================================
     # PORTFOLIO: top 3 equal-weighted each month (rebalance on month-end)

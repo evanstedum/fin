@@ -24,18 +24,19 @@ tickers = [
 ]
 
 # Analysis period — get the last 7 days
-start_date = (date.today() - timedelta(days=7)).isoformat()    # 7 days ago
-end_date   = (date.today() - timedelta(days=0)).isoformat()   # today
+start_date = (date.today() - pd.offsets.BusinessDay(5)).strftime("%Y-%m-%d")   # 5 business days ago
+end_date_date = (date.today() - pd.offsets.BusinessDay(1)) # we'll need this 'yesterday' later for fetch start
+end_date   = end_date_date.strftime("%Y-%m-%d")   # 
 
 # Fetch extra history so 252-day lookback works from day 1
-fetch_start    = (date.today() - relativedelta(months=14)).isoformat()      # ~14 months before analysis_start — safe buffer
+fetch_start    = (end_date_date - relativedelta(months=14)).strftime("%Y-%m-%d")      # ~14 months before analysis_start — safe buffer
 
 # Lookback periods in trading days
 periods = [63, 126, 252]
 period_names = ['63', '126', '252']
 
-# ← change filename as needed
-output_file = f'/Users/peterkay/Downloads/csv/papabear{end_date.replace("-", "")}.csv'
+# ← output files uses coded version of end date for easy tracking
+output_file = f'/Users/peterkay/Downloads/csv/papabear{end_date_date.strftime("%Y%m%d")}-{datetime.now().strftime("%H%M")}.csv'
 
 # ────────────────────────────────────────────────
 # DOWNLOAD DATA
@@ -57,7 +58,7 @@ adj_close = cache.get (
 
 trading_dates = adj_close.index.sort_values()
 trading_dates = trading_dates[trading_dates >= pd.to_datetime(start_date)]
-trading_dates = trading_dates[trading_dates < pd.to_datetime(end_date)]
+trading_dates = trading_dates[trading_dates <= pd.to_datetime(end_date)]
 
 # print(f"Found {len(trading_dates)} trading days in range")
 

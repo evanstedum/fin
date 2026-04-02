@@ -96,8 +96,8 @@ class yfcache:
             self.logger.info(f"Tickers missing or needing update: {missed_tickers} with needed starts: {needed_starts}")
             # Use the earliest start date required by any ticker in the missing batch
             download_start = min(needed_starts).strftime("%Y-%m-%d")
-            yesterday = (date.today() - pd.Timedelta(days=1)).strftime("%Y-%m-%d") # Yahoo Finance may not have today's data yet, so we use yesterday as the end date for downloads
-            new_data = yf.download(missed_tickers, start=download_start, end=yesterday, auto_adjust=True, progress=False)
+            today = date.today().strftime("%Y-%m-%d") # Yahoo Finance gets exclusive end date, so we can use today to get up to yesterday's data
+            new_data = yf.download(missed_tickers, start=download_start, end=today, auto_adjust=True, progress=False)
             
             if not new_data.empty:
                 # Extract Close prices (auto_adjust moves Adj Close here)

@@ -164,6 +164,7 @@ def run_momda (
     if verbose: save_csv(top_ticks,"topTics")
     if verbose: save_csv(top_close,"topClose")
 
+
     #===========
     # calculate holdings
 
@@ -203,6 +204,28 @@ def run_momda (
     if verbose: save_csv(value,"value")
     if verbose: save_csv(shares,"shares")
 
+    #==========================
+    # create portfolio list for the last day 
+
+    day_list = [data.pct_change(periods=d).resample("B").last() for d in mom_days] # get daily momentum buckets
+    avg_daily_momentum = sum(day_list) / len(mom_days) # and average them
+    last_day = pd.to_datetime(avg_daily_momentum.iloc[-1].name) # save the last date for later use
+    today_momentum = (avg_daily_momentum.loc[last_day] * 100).round(2) # extract last day's momentum and convert to pcnt
+    today_prices = data.loc[pd.to_datetime(today_momentum.name)][today_momentum.index] # get today's closing prices
+    today_report = pd.DataFrame({ # combine the two into 1 report dataframe
+        'Avg Momentum': today_momentum,      
+        'Adj Close': today_prices    
+    })
+    today_report = today_report.sort_values('Avg Momentum', ascending=False) # sort by momentum
+    # format the columns
+    today_report["Adj Close"] = today_report["Adj Close"].map("${:,.2f}".format)
+    today_report["Avg Momentum"] = today_report["Avg Momentum"].map("{:.2f}%".format)
+    # twist it around to get more of a report look 
+
+    pass
+    
+    # today_report = avg_daily_momentum.reset_index().melt(id_vars='Date', var_name='Ticker', value_name='Avg').set_index('Date')
+    # today_report = today_report.loc[pd.to_datetime(data.iloc[-1].name)].sort_values('Avg', ascending=False)  # last day only
     #===========
     # finalize data for copy/paste friendly format
 
@@ -212,7 +235,10 @@ def run_momda (
     #copy_paste = copy_paste.rename(columns={copy_paste.columns[0]: f"{file_prefix}"})
     copy_paste.rename(f"{file_prefix}", inplace=True)
     csvFileName = "CopyPaste"
-    print(f"Exporting Values to {file_prefix}{csvFileName}.csv")
+    logger.info(f"Exporting Values to {file_prefix}{csvFileName}.csv")
     save_csv(copy_paste,"CopyPaste")
+
+    logger.info(f"Asset Mix on {last_day.strftime('%m/%d/%Y')} Closing:")
+    logger.info(today_report)
     
-    print("Done!")
+    logger.info("Done!")

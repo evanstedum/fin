@@ -43,7 +43,7 @@ def run_momda (
     mda_param: int = 0, # non-zero values kick in the days to compute moving average
     cash_etf: str = 'BIL',
     file_prefix: str  = "momda",  # suffix gets appended to each csv file
-    verbose: bool = False, # outputs lots of csv files along the way
+    verbose: bool = True, # outputs lots of csv files along the way
     skip_cache: bool = False, # use the cache to minimize Yahoo api calls
     output_dir_param: str  = str(Path.home() / "Downloads" / "backtestFiles") # directory holding csvs
 ) -> None:

@@ -4,7 +4,11 @@ Papa bear original 13
 """
 import sys
 from pathlib import Path
-from datetime import date
+
+# Add repo root to sys.path so we can import backtest modules
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
 from backtest.src.momda import run_momda
 
 CONFIG = {

@@ -8,6 +8,13 @@ in momentum computation pick the top three that are also above their MDA
 cash accounts are always considered above their mda so worst case (i.e. all tickers are below their mda) all money will go to cash for that month
 
 """
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from yfcache import yfcache
 
 import pandas as pd
 import yfinance as yf

@@ -36,7 +36,7 @@ periods = [63, 126, 252]
 period_names = ['63', '126', '252']
 
 # ← output files uses coded version of end date for easy tracking
-output_file = f'papabear{end_date_date.strftime("%Y%m%d")}-{datetime.now().strftime("%H%M")}.csv'
+output_file = f'/Users/evste/Downloads/csv/papabear{end_date_date.strftime("%Y%m%d")}-{datetime.now().strftime("%H%M")}.csv'
 
 # ────────────────────────────────────────────────
 # DOWNLOAD DATA

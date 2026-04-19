@@ -35,7 +35,8 @@ def run_momda (
         'PDBC', 'IAU', 'EDV', 'VGIT', 'VCLT', 'BNDX'
     ],
     mom_days: list[int] = [63, 126, 252], # trading days to average over
-    start_date: str  = (datetime.today() - pd.Timedelta(weeks=532)).strftime("%Y-%m-%d"),# approx 10 yrs and 3 months go
+    # start_date: str  = (datetime.today() - pd.Timedelta(weeks=532)).strftime("%Y-%m-%d"),# approx 10 yrs and 3 months go
+    start_date: str  = "2016-01-02",      # <-- your desired backtest start date here - I like to use the 1st of the month since this strategy is designed to rebalance on month-end, but you can use any date you want. Just make sure it's far enough back to give you enough data for the momentum lookback periods (e.g., if you're using 252 trading days for momentum, you'll want at least a year of data before your
     end_date: str    = (pd.Timestamp.today() - pd.offsets.BMonthEnd(1)).strftime("%Y-%m-%d"), # previous month business end date
     top_assets: int = 3, # how many top assets to balance?
     value_start: float = 100_000, # starting porfolio value

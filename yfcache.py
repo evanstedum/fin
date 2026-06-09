@@ -62,15 +62,14 @@ class yfcache:
         s_ts = pd.to_datetime(s)
         e_ts = pd.to_datetime(e)
 
-        # If end_date is today or in the future, cap it at yesterday to ensure we only request completed days
-        if e_ts.date() >= pd.Timestamp.now().date():
-            e_ts = e_ts - pd.Timedelta(days=1)
+        # Cap at today if market is closed, else cap at yesterday
+        now_et = pd.Timestamp.now(tz='US/Eastern')
+        max_allowed = now_et.date() if now_et.hour >= 16 else (now_et.date() - pd.offsets.BusinessDay(1)).date()
+        if e_ts.date() > max_allowed:
+            e_ts = pd.Timestamp(max_allowed)
 
-        # Ensure both dates are business days 
-        # start date rolls forward
-        s = pd.offsets.BusinessDay().rollforward(s_ts).strftime("%Y-%m-%d")
-        # end date rolls back 
-        e = pd.offsets.BusinessDay().rollback(e_ts).strftime("%Y-%m-%d")
+        s = s_ts.strftime("%Y-%m-%d")
+        e = e_ts.strftime("%Y-%m-%d")
         return ticker_list, tickers_key, s, e
     
     def get(self, ticker_list, start_date, end_date, skip_cache = False):
@@ -106,8 +105,11 @@ class yfcache:
             self.logger.info(f"Tickers missing or needing update: {missed_tickers} with needed starts: {needed_starts}")
             # Use the earliest start date required by any ticker in the missing batch
             download_start = min(needed_starts).strftime("%Y-%m-%d")
-            today = date.today().strftime("%Y-%m-%d") # Yahoo Finance gets exclusive end date, so we can use today to get up to yesterday's data
-            new_data = yf.download(missed_tickers, start=download_start, end=today, auto_adjust=True, progress=False)
+            
+            # yfinance end date is exclusive. To include 'end_date', we must download up to 'end_date + 1'
+            download_end = (pd.to_datetime(end_date) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+            
+            new_data = yf.download(missed_tickers, start=download_start, end=download_end, auto_adjust=True, progress=False)
             
             if not new_data.empty:
                 # Extract Close prices (auto_adjust moves Adj Close here)
@@ -125,7 +127,7 @@ class yfcache:
                 # Upsert into DuckDB
                 self.con.execute("INSERT OR REPLACE INTO prices SELECT * FROM df_long")
             else: # we didn't get any data from the yfinance call
-                self.logger.warning(f"Empty df from yfinance from {download_start} to {today}. Pulling from available cache")
+                self.logger.warning(f"Empty df from yfinance from {download_start} to {download_end}. Pulling from available cache")
         else: 
             self.logger.info("Cache hit")
 
@@ -151,4 +153,10 @@ class yfcache:
         
         # Ensure all calendar days and all requested tickers are present
         final_df.index = pd.to_datetime(final_df.index)
+        
+        # Ensure all requested tickers have a column, even if all NaN
+        for t in ticker_list:
+            if t not in final_df.columns:
+                final_df[t] = np.nan
+        
         return YfCacheResult(final_df, missed_tickers, needed_starts)
